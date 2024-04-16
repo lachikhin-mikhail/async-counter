@@ -43,16 +43,11 @@ func Worker(in <-chan int64, out chan<- int64) {
 
 func main() {
 	chIn := make(chan int64)
-	var wgCtx sync.WaitGroup
-	wgCtx.Add(1)
+
 	// 3. Создание контекста
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	// Предотвращаем программу от завершения до завершения работы горутин
-	context.AfterFunc(ctx, func() {
-		wgCtx.Done()
-		return
-	})
 	// для проверки будем считать количество и сумму отправленных чисел
 	var inputSum int64   // сумма сгенерированных чисел
 	var inputCount int64 // количество сгенерированных чисел
@@ -106,28 +101,20 @@ func main() {
 	var sum int64   // сумма чисел результирующего канала
 
 	// 5. Читаем числа из результирующего канала
-	go func(ch <-chan int64) {
-		wgCtx.Add(1)
-		defer wgCtx.Done()
-		for true {
-			num, ok := <-ch
-			if !ok {
-				return
-			}
-			atomic.AddInt64(&count, 1)
-			atomic.AddInt64(&sum, num)
+	for true {
+		num, ok := <-chOut
+		if !ok {
+			break
 		}
-
-	}(chOut)
-
-	wgCtx.Wait()
+		atomic.AddInt64(&count, 1)
+		atomic.AddInt64(&sum, num)
+	}
 
 	fmt.Println("Количество чисел", inputCount, count)
 	fmt.Println("Сумма чисел", inputSum, sum)
 	fmt.Println("Разбивка по каналам", amounts)
 
 	// проверка результатов
-	fmt.Println(inputSum, sum)
 	if inputSum != sum {
 		log.Fatalf("Ошибка: суммы чисел не равны: %d != %d\n", inputSum, sum)
 	}
